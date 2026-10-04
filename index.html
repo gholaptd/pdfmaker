@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PDF Maker" />
+  <meta name="theme-color" content="#1f6feb" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Photo → PDF</title>
+</head>
+<body>
+  <header>
+    <h1>Photo → PDF</h1>
+    <span id="count">0 pages</span>
+  </header>
+
+  <main>
+    <div class="actions">
+      <button id="cameraBtn" class="primary">📷 Camera</button>
+      <button id="libraryBtn">🖼️ Photos</button>
+    </div>
+
+    <!-- Hidden inputs: native camera fallback and photo library picker -->
+    <input id="nativeCamera" type="file" accept="image/*" capture="environment" hidden />
+    <input id="library" type="file" accept="image/*" multiple hidden />
+
+    <p id="empty" class="empty">Take pictures or pick photos. Each photo becomes a page. Reorder, rotate, then create your PDF.</p>
+    <ol id="pages" class="pages"></ol>
+
+    <section class="options">
+      <label>File name
+        <input id="fileName" type="text" value="scan" autocomplete="off" />
+      </label>
+      <label>Page size
+        <select id="pageSize">
+          <option value="a4">A4</option>
+          <option value="letter">US Letter</option>
+          <option value="fit">Fit to photo</option>
+        </select>
+      </label>
+      <label>Margin
+        <select id="margin">
+          <option value="0">None</option>
+          <option value="18">Small</option>
+          <option value="36">Large</option>
+        </select>
+      </label>
+      <label>Quality
+        <select id="quality">
+          <option value="1600">Smaller file</option>
+          <option value="2400" selected>Balanced</option>
+          <option value="4000">High</option>
+        </select>
+      </label>
+    </section>
+  </main>
+
+  <footer>
+    <button id="clearBtn" class="danger" disabled>Clear</button>
+    <button id="makePdfBtn" class="primary" disabled>Create PDF</button>
+  </footer>
+
+  <!-- In-app camera for rapid multi-page capture -->
+  <div id="camera" class="camera" hidden>
+    <video id="video" autoplay playsinline muted></video>
+    <div id="flash" class="flash"></div>
+    <div class="camera-bar">
+      <button id="camClose">Done</button>
+      <button id="shutter" class="shutter" aria-label="Take picture"></button>
+      <span id="camCount" class="cam-count">0</span>
+    </div>
+  </div>
+
+  <div id="busy" class="busy" hidden><div class="spinner"></div><p id="busyText">Working…</p></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
