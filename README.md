@@ -6,7 +6,8 @@ A static web app that turns photos into a multi-page PDF and joins existing PDFs
 - **📷 Camera**: in-app camera. Tap the shutter repeatedly to capture many pages, then tap **Done**. If camera permission is denied, it falls back to the iOS camera sheet.
 - **🖼️ Photos**: pick multiple images from the photo library (HEIC is converted automatically).
 - **📄 PDFs**: add existing PDFs to join them, mixed in any order with photos. PDF pages are copied as-is (text stays selectable). Password-protected PDFs are skipped.
-- Reorder (◀︎ ▶︎), rotate (⟳), and delete (🗑) pages. Rotating a PDF rotates all of its pages.
+- Reorder (◀︎ ▶︎), rotate (⟳), crop (✂︎), and delete (🗑) pages. Rotating a PDF rotates all of its pages.
+- **Crop**: drag the corners or edges to resize, or drag inside the box to move it. The original photo is kept, so you can re-crop or **Reset** later.
 - Page size: A4, US Letter, or fit to photo. Margins and quality are adjustable.
 - **Create PDF** opens the iOS share sheet so you can Save to Files, AirDrop, Mail, and so on.
 - Installable: in Safari, tap Share → **Add to Home Screen**. Works offline after the first visit.

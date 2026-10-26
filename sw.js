@@ -1,5 +1,5 @@
 // Offline cache for the app shell. Bump VERSION when deploying changes.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'pdf.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'vendor/pdf-lib.esm.min.js'];
 
 self.addEventListener('install', (e) => {

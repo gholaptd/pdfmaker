@@ -3,6 +3,9 @@ import { buildPdf } from './pdf.js';
 const MAX_SOURCE = 4000; // longest side kept in memory (stays under iOS canvas limits)
 const THUMB = 400;
 const JPEG_QUALITY = 0.85;
+const CROP_PREVIEW = 1600;
+const MIN_CROP = 0.05; // smallest crop side, as a fraction of the image
+const FULL = { x: 0, y: 0, w: 1, h: 1 };
 const PDF_LIB_URL = './vendor/pdf-lib.esm.min.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,12 +19,15 @@ const els = {
   camera: $('camera'), video: $('video'), shutter: $('shutter'), camClose: $('camClose'),
   camCount: $('camCount'), flash: $('flash'),
   busy: $('busy'), busyText: $('busyText'),
+  cropper: $('cropper'), cropStage: $('cropStage'), cropFrame: $('cropFrame'), cropImg: $('cropImg'),
+  cropBox: $('cropBox'), cropCancel: $('cropCancel'), cropReset: $('cropReset'), cropDone: $('cropDone'),
 };
 
 /**
  * Photos are one page each. PDFs are a single item covering all of their pages.
+ * A photo's crop is a fraction of the rotated image (null = uncropped).
  * @type {Array<
- *   {id: number, kind: 'photo', source: Blob, rotation: number, thumbUrl: string} |
+ *   {id: number, kind: 'photo', source: Blob, rotation: number, crop: ?{x: number, y: number, w: number, h: number}, thumbUrl: string} |
  *   {id: number, kind: 'pdf', bytes: Uint8Array, name: string, pageCount: number, rotation: number}
  * >}
  */
@@ -54,27 +60,33 @@ function canvasToBlob(canvas, quality = JPEG_QUALITY) {
   );
 }
 
-/** Draws `src` (image/video/canvas) rotated and scaled so the longest side <= maxSide. */
-function renderToCanvas(src, srcW, srcH, rotation, maxSide) {
-  const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
-  const w = Math.round(srcW * scale);
-  const h = Math.round(srcH * scale);
+/**
+ * Draws `src` (image/video/canvas) rotated, then cropped to `crop` (fractions of the
+ * rotated image), and scaled so the longest side of the result <= maxSide.
+ */
+function renderToCanvas(src, srcW, srcH, rotation, maxSide, crop = FULL) {
   const swap = rotation % 180 !== 0;
+  const rw = swap ? srcH : srcW; // rotated size
+  const rh = swap ? srcW : srcH;
+  const cw = crop.w * rw;
+  const ch = crop.h * rh;
+  const scale = Math.min(1, maxSide / Math.max(cw, ch));
   const canvas = document.createElement('canvas');
-  canvas.width = swap ? h : w;
-  canvas.height = swap ? w : h;
+  canvas.width = Math.max(1, Math.round(cw * scale));
+  canvas.height = Math.max(1, Math.round(ch * scale));
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; // JPEG has no alpha; avoid black backgrounds for transparent PNGs
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(rw / 2 - crop.x * rw, rh / 2 - crop.y * rh);
   ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(src, -w / 2, -h / 2, w, h);
+  ctx.drawImage(src, -srcW / 2, -srcH / 2, srcW, srcH);
   return canvas;
 }
 
-async function renderBlob(blob, rotation, maxSide, quality) {
+async function renderBlob(blob, rotation, maxSide, quality, crop) {
   const img = await loadImage(blob);
-  const canvas = renderToCanvas(img, img.naturalWidth, img.naturalHeight, rotation, maxSide);
+  const canvas = renderToCanvas(img, img.naturalWidth, img.naturalHeight, rotation, maxSide, crop || FULL);
   const out = await canvasToBlob(canvas, quality);
   const result = { blob: out, width: canvas.width, height: canvas.height };
   canvas.width = canvas.height = 0; // release memory early on iOS
@@ -84,7 +96,7 @@ async function renderBlob(blob, rotation, maxSide, quality) {
 // ---------- page management ----------
 
 async function addSource(source) {
-  const page = { id: nextId++, kind: 'photo', source, rotation: 0, thumbUrl: '' };
+  const page = { id: nextId++, kind: 'photo', source, rotation: 0, crop: null, thumbUrl: '' };
   await refreshThumb(page);
   pages.push(page);
   render();
@@ -132,7 +144,7 @@ async function addPdfs(files) {
 }
 
 async function refreshThumb(page) {
-  const { blob } = await renderBlob(page.source, page.rotation, THUMB, 0.7);
+  const { blob } = await renderBlob(page.source, page.rotation, THUMB, 0.7, page.crop);
   if (page.thumbUrl) URL.revokeObjectURL(page.thumbUrl);
   page.thumbUrl = URL.createObjectURL(blob);
 }
@@ -157,6 +169,11 @@ async function rotatePage(id) {
   const page = pages.find((p) => p.id === id);
   if (!page) return;
   page.rotation = (page.rotation + 90) % 360;
+  if (page.crop) {
+    // Keep the same region selected: rotating 90° clockwise maps (x, y) to (1 - y, x).
+    const { x, y, w, h } = page.crop;
+    page.crop = { x: 1 - (y + h), y: x, w: h, h: w };
+  }
   if (page.kind === 'photo') await refreshThumb(page);
   render();
 }
@@ -179,6 +196,7 @@ function render() {
       <div class="tools">
         <button data-act="up" aria-label="Move earlier" ${i === 0 ? 'disabled' : ''}>◀︎</button>
         <button data-act="rotate" aria-label="Rotate">⟳</button>
+        ${p.kind === 'photo' ? '<button data-act="crop" aria-label="Crop">✂︎</button>' : ''}
         <button data-act="down" aria-label="Move later" ${i === pages.length - 1 ? 'disabled' : ''}>▶︎</button>
         <button data-act="delete" aria-label="Delete">🗑</button>
       </div>`;
@@ -193,6 +211,7 @@ function render() {
       if (act === 'up') movePage(p.id, -1);
       else if (act === 'down') movePage(p.id, 1);
       else if (act === 'rotate') rotatePage(p.id);
+      else if (act === 'crop') openCropper(p.id);
       else if (act === 'delete') removePage(p.id);
     });
     els.pages.appendChild(li);
@@ -205,6 +224,104 @@ function render() {
   els.clearBtn.disabled = n === 0;
   els.camCount.textContent = pages.filter((p) => p.kind === 'photo').length;
 }
+
+// ---------- crop editor ----------
+
+/** @type {?{page: object, rect: {x: number, y: number, w: number, h: number}, url: string, aspect: number}} */
+let cropping = null;
+let cropDrag = null;
+
+async function openCropper(id) {
+  const page = pages.find((p) => p.id === id);
+  if (!page || page.kind !== 'photo') return;
+  showBusy('Opening…');
+  try {
+    const { blob, width, height } = await renderBlob(page.source, page.rotation, CROP_PREVIEW, 0.85);
+    cropping = { page, rect: { ...(page.crop || FULL) }, url: URL.createObjectURL(blob), aspect: width / height };
+  } catch (err) {
+    alert(err.message);
+    return;
+  } finally {
+    hideBusy();
+  }
+  els.cropImg.src = cropping.url;
+  els.cropper.hidden = false;
+  layoutCropper();
+}
+
+function closeCropper() {
+  if (cropping) URL.revokeObjectURL(cropping.url);
+  cropping = null;
+  cropDrag = null;
+  els.cropImg.removeAttribute('src');
+  els.cropper.hidden = true;
+}
+
+/** Sizes the frame to the largest box with the image's aspect ratio that fits the stage. */
+function layoutCropper() {
+  if (!cropping) return;
+  const style = getComputedStyle(els.cropStage);
+  const sw = els.cropStage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const sh = els.cropStage.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  const w = Math.min(sw, sh * cropping.aspect);
+  els.cropFrame.style.width = `${w}px`;
+  els.cropFrame.style.height = `${w / cropping.aspect}px`;
+  drawCropBox();
+}
+
+function drawCropBox() {
+  const { x, y, w, h } = cropping.rect;
+  Object.assign(els.cropBox.style, { left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` });
+}
+
+function framePoint(e) {
+  const r = els.cropFrame.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+els.cropFrame.addEventListener('pointerdown', (e) => {
+  if (!cropping || !e.target.closest('.crop-box')) return;
+  e.preventDefault();
+  cropDrag = { handle: e.target.dataset.handle || 'move', start: framePoint(e), rect: { ...cropping.rect } };
+  els.cropFrame.setPointerCapture(e.pointerId);
+});
+
+els.cropFrame.addEventListener('pointermove', (e) => {
+  if (!cropDrag) return;
+  const p = framePoint(e);
+  const dx = p.x - cropDrag.start.x;
+  const dy = p.y - cropDrag.start.y;
+  const r = cropDrag.rect;
+  if (cropDrag.handle === 'move') {
+    cropping.rect = { ...r, x: clamp(r.x + dx, 0, 1 - r.w), y: clamp(r.y + dy, 0, 1 - r.h) };
+  } else {
+    // Handles are named by compass direction: n/s move the top/bottom edge, w/e the left/right.
+    let left = r.x, top = r.y, right = r.x + r.w, bottom = r.y + r.h;
+    const h = cropDrag.handle;
+    if (h.includes('w')) left = clamp(left + dx, 0, right - MIN_CROP);
+    if (h.includes('e')) right = clamp(right + dx, left + MIN_CROP, 1);
+    if (h.includes('n')) top = clamp(top + dy, 0, bottom - MIN_CROP);
+    if (h.includes('s')) bottom = clamp(bottom + dy, top + MIN_CROP, 1);
+    cropping.rect = { x: left, y: top, w: right - left, h: bottom - top };
+  }
+  drawCropBox();
+});
+
+for (const type of ['pointerup', 'pointercancel']) els.cropFrame.addEventListener(type, () => { cropDrag = null; });
+
+els.cropCancel.addEventListener('click', closeCropper);
+els.cropReset.addEventListener('click', () => { cropping.rect = { ...FULL }; drawCropBox(); });
+els.cropDone.addEventListener('click', async () => {
+  const { page, rect } = cropping;
+  closeCropper();
+  const full = rect.x < 0.001 && rect.y < 0.001 && rect.w > 0.999 && rect.h > 0.999;
+  page.crop = full ? null : rect;
+  await refreshThumb(page);
+  render();
+});
+window.addEventListener('resize', layoutCropper);
 
 // ---------- in-app camera ----------
 
@@ -267,7 +384,7 @@ async function photosToPdf(photos, progress = { done: 0, total: photos.length })
   const images = [];
   for (const p of photos) {
     showBusy(`Preparing page ${++progress.done} of ${progress.total}…`);
-    const { blob, width, height } = await renderBlob(p.source, p.rotation, maxSide, JPEG_QUALITY);
+    const { blob, width, height } = await renderBlob(p.source, p.rotation, maxSide, JPEG_QUALITY, p.crop);
     images.push({ bytes: new Uint8Array(await blob.arrayBuffer()), width, height });
   }
   showBusy('Building PDF…');
