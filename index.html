@@ -24,13 +24,15 @@
     <div class="actions">
       <button id="cameraBtn" class="primary">📷 Camera</button>
       <button id="libraryBtn">🖼️ Photos</button>
+      <button id="pdfBtn">📄 PDFs</button>
     </div>
 
     <!-- Hidden inputs: native camera fallback and photo library picker -->
     <input id="nativeCamera" type="file" accept="image/*" capture="environment" hidden />
     <input id="library" type="file" accept="image/*" multiple hidden />
+    <input id="pdfInput" type="file" accept="application/pdf,.pdf" multiple hidden />
 
-    <p id="empty" class="empty">Take pictures or pick photos. Each photo becomes a page. Reorder, rotate, then create your PDF.</p>
+    <p id="empty" class="empty">Take pictures, pick photos, or add PDFs to join. Each photo becomes a page. Reorder, rotate, then create your PDF.</p>
     <ol id="pages" class="pages"></ol>
 
     <section class="options">

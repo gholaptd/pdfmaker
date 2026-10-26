@@ -35,13 +35,18 @@ button:disabled { opacity: .45; }
 button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 button.danger { color: var(--danger); }
 
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.actions button { padding: 14px 8px; }
 .empty { color: var(--muted); text-align: center; margin: 32px 8px; }
 
 .pages { list-style: none; padding: 0; margin: 16px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .page { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .page .thumb { position: relative; aspect-ratio: 3 / 4; background: #0002; display: flex; align-items: center; justify-content: center; }
 .page img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.page .thumb.doc { flex-direction: column; gap: 6px; padding: 12px; text-align: center; }
+.page .doc-icon { font-size: 44px; transition: transform .2s; }
+.page .doc-name { font-size: 13px; font-weight: 600; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.page .doc-pages { font-size: 12px; color: var(--muted); }
 .page .num { position: absolute; top: 6px; left: 6px; background: #000a; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
 .page .tools { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); }
 .page .tools button { border: 0; border-radius: 0; padding: 10px 0; background: transparent; font-size: 18px; }
