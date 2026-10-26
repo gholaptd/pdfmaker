@@ -24,13 +24,15 @@
     <div class="actions">
       <button id="cameraBtn" class="primary">📷 Camera</button>
       <button id="libraryBtn">🖼️ Photos</button>
+      <button id="pdfBtn">📄 PDFs</button>
     </div>
 
     <!-- Hidden inputs: native camera fallback and photo library picker -->
     <input id="nativeCamera" type="file" accept="image/*" capture="environment" hidden />
     <input id="library" type="file" accept="image/*" multiple hidden />
+    <input id="pdfInput" type="file" accept="application/pdf,.pdf" multiple hidden />
 
-    <p id="empty" class="empty">Take pictures or pick photos. Each photo becomes a page. Reorder, rotate, then create your PDF.</p>
+    <p id="empty" class="empty">Take pictures, pick photos, or add PDFs to join. Each photo becomes a page. Reorder, rotate, crop, then create your PDF.</p>
     <ol id="pages" class="pages"></ol>
 
     <section class="options">
@@ -74,6 +76,25 @@
       <button id="camClose">Done</button>
       <button id="shutter" class="shutter" aria-label="Take picture"></button>
       <span id="camCount" class="cam-count">0</span>
+    </div>
+  </div>
+
+  <!-- Crop editor -->
+  <div id="cropper" class="cropper" hidden>
+    <div id="cropStage" class="crop-stage">
+      <div id="cropFrame" class="crop-frame">
+        <img id="cropImg" alt="Crop preview" draggable="false" />
+        <div id="cropBox" class="crop-box">
+          <span data-handle="nw"></span><span data-handle="n"></span><span data-handle="ne"></span>
+          <span data-handle="e"></span><span data-handle="se"></span><span data-handle="s"></span>
+          <span data-handle="sw"></span><span data-handle="w"></span>
+        </div>
+      </div>
+    </div>
+    <div class="crop-bar">
+      <button id="cropCancel">Cancel</button>
+      <button id="cropReset">Reset</button>
+      <button id="cropDone" class="primary">Done</button>
     </div>
   </div>
 
